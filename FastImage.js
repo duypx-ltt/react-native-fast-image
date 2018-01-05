@@ -96,6 +96,14 @@ FastImage.propTypes = {
   onLoadEnd: PropTypes.func,
 }
 
+FastImage.getSizeCached = () => {
+  return FastImageViewNativeModule.getSizeCached();
+}
+
+FastImage.clearCached = () => {
+  return FastImageViewNativeModule.clearCached();
+}
+
 const FastImageView = requireNativeComponent('FastImageView', FastImage, {
   nativeOnly: {
     onFastImageLoadStart: true,
