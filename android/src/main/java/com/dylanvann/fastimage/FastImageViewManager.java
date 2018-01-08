@@ -1,9 +1,24 @@
 package com.dylanvann.fastimage;
 
 import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
+import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
@@ -11,6 +26,7 @@ import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.BitmapImageViewTarget;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
 import com.facebook.react.bridge.ReadableMap;
@@ -32,6 +48,8 @@ import javax.annotation.Nullable;
 
 class ImageViewWithUrl extends ImageView {
     public GlideUrl glideUrl;
+    public Priority priority;
+    public float borderRadius;
 
     public ImageViewWithUrl(Context context) {
         super(context);
@@ -119,7 +137,8 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         view.glideUrl = glideUrl;
 
         // Get priority.
-        final Priority priority = FastImageViewConverter.priority(source);
+//        final Priority priority = FastImageViewConverter.priority(source);
+        view.priority = FastImageViewConverter.priority(source);
 
         // Cancel existing request.
         Glide.clear(view);
@@ -139,20 +158,66 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         int viewId = view.getId();
         eventEmitter.receiveEvent(viewId, REACT_ON_LOAD_START_EVENT, new WritableNativeMap());
 
-        Glide
-                .with(view.getContext().getApplicationContext())
-                .load(glideUrl)
-                .dontTransform()
-                .priority(priority)
-                .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
-                .into(view);
+//        Glide
+//                .with(view.getContext().getApplicationContext())
+//                .load(glideUrl)
+//                .dontTransform()
+//                .priority(priority)
+//                .placeholder(TRANSPARENT_DRAWABLE)
+//                .listener(LISTENER)
+//                .into(view);
     }
 
     @ReactProp(name = "resizeMode")
     public void setResizeMode(ImageViewWithUrl view, String resizeMode) {
         final ImageViewWithUrl.ScaleType scaleType = FastImageViewConverter.scaleType(resizeMode);
         view.setScaleType(scaleType);
+    }
+
+    @ReactProp(name = "borderRadius")
+    public void setBorderRadius(ImageViewWithUrl view, @Nullable float value) {
+        view.borderRadius = convertDpToPixel(value, view.getContext());
+    }
+
+    public static float convertPixelsToDp(float px, Context context){
+        Resources resources = context.getResources();
+        DisplayMetrics metrics = resources.getDisplayMetrics();
+        float dp = px / ((float)metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
+        return dp;
+    }
+
+    public static float convertDpToPixel(float dp, Context context){
+        Resources resources = context.getResources();
+        DisplayMetrics metrics = resources.getDisplayMetrics();
+        float px = dp * ((float)metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
+        return px;
+    }
+
+    @Override
+    protected void onAfterUpdateTransaction(ImageViewWithUrl view) {
+        if (view.borderRadius > 0) {
+            final float borderRadius = view.borderRadius;
+            final Context context = view.getContext();
+
+            Glide.with(view.getContext()).load(view.glideUrl).asBitmap().centerCrop().into(new BitmapImageViewTarget(view) {
+                @Override
+                protected void setResource(Bitmap resource) {
+                    RoundedBitmapDrawable circularBitmapDrawable =
+                            RoundedBitmapDrawableFactory.create(context.getResources(), resource);
+                    circularBitmapDrawable.setCornerRadius(borderRadius);
+                    view.setImageDrawable(circularBitmapDrawable);
+                }
+            });
+        } else {
+            Glide
+                .with(view.getContext().getApplicationContext())
+                .load(view.glideUrl)
+                .dontTransform()
+                .priority(view.priority)
+                .placeholder(TRANSPARENT_DRAWABLE)
+                .listener(LISTENER)
+                .into(view);
+        }
     }
 
     @Override
@@ -190,7 +255,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     public void onProgress(String key, long bytesRead, long expectedLength) {
         List<ImageViewWithUrl> viewsForKey = VIEWS_FOR_URLS.get(key);
         if (viewsForKey != null) {
-            for (ImageViewWithUrl view: viewsForKey) {
+            for (ImageViewWithUrl view : viewsForKey) {
                 WritableMap event = new WritableNativeMap();
                 event.putInt("loaded", (int) bytesRead);
                 event.putInt("total", (int) expectedLength);
