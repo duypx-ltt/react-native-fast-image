@@ -50,6 +50,8 @@ class ImageViewWithUrl extends ImageView {
     public GlideUrl glideUrl;
     public Priority priority;
     public float borderRadius;
+    public float borderWidth;
+    public int borderColor;
 
     public ImageViewWithUrl(Context context) {
         super(context);
@@ -179,17 +181,29 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         view.borderRadius = convertDpToPixel(value, view.getContext());
     }
 
-    public static float convertPixelsToDp(float px, Context context){
+    @ReactProp(name = "borderWidth")
+    public void setBorderWidth(ImageViewWithUrl view, @Nullable float value) {
+        view.borderWidth = convertDpToPixel(value, view.getContext());
+    }
+
+    @ReactProp(name = "borderColor")
+    public void setBorderColor(ImageViewWithUrl view, @Nullable String value) {
+        if (value != null && !value.equals("")) {
+            view.borderColor = Color.parseColor(value);
+        }
+    }
+
+    public static float convertPixelsToDp(float px, Context context) {
         Resources resources = context.getResources();
         DisplayMetrics metrics = resources.getDisplayMetrics();
-        float dp = px / ((float)metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
+        float dp = px / ((float) metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
         return dp;
     }
 
-    public static float convertDpToPixel(float dp, Context context){
+    public static float convertDpToPixel(float dp, Context context) {
         Resources resources = context.getResources();
         DisplayMetrics metrics = resources.getDisplayMetrics();
-        float px = dp * ((float)metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
+        float px = dp * ((float) metrics.densityDpi / DisplayMetrics.DENSITY_DEFAULT);
         return px;
     }
 
@@ -198,26 +212,154 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
         if (view.borderRadius > 0) {
             final float borderRadius = view.borderRadius;
             final Context context = view.getContext();
+            final float borderWidth = view.borderWidth;
 
             Glide.with(view.getContext()).load(view.glideUrl).asBitmap().centerCrop().into(new BitmapImageViewTarget(view) {
                 @Override
                 protected void setResource(Bitmap resource) {
-                    RoundedBitmapDrawable circularBitmapDrawable =
-                            RoundedBitmapDrawableFactory.create(context.getResources(), resource);
-                    circularBitmapDrawable.setCornerRadius(borderRadius);
+                    RoundedBitmapDrawable circularBitmapDrawable;
+                    if (borderWidth <= 0) {
+                        circularBitmapDrawable =
+                                RoundedBitmapDrawableFactory.create(context.getResources(), resource);
+                        circularBitmapDrawable.setCornerRadius(borderRadius);
+                    } else {
+                        circularBitmapDrawable = createRoundedBitmapDrawableWithBorder(resource, context.getResources(), (ImageViewWithUrl) view);
+                    }
                     view.setImageDrawable(circularBitmapDrawable);
                 }
             });
         } else {
             Glide
-                .with(view.getContext().getApplicationContext())
-                .load(view.glideUrl)
-                .dontTransform()
-                .priority(view.priority)
-                .placeholder(TRANSPARENT_DRAWABLE)
-                .listener(LISTENER)
-                .into(view);
+                    .with(view.getContext().getApplicationContext())
+                    .load(view.glideUrl)
+                    .dontTransform()
+                    .priority(view.priority)
+                    .placeholder(TRANSPARENT_DRAWABLE)
+                    .listener(LISTENER)
+                    .into(view);
         }
+    }
+
+    private RoundedBitmapDrawable createRoundedBitmapDrawableWithBorder(Bitmap bitmap, Resources resources, ImageViewWithUrl imageView) {
+        int bitmapWidth = bitmap.getWidth();
+        int bitmapHeight = bitmap.getHeight();
+        int borderWidthHalf = (int) imageView.borderWidth;
+        //Toast.makeText(mContext,""+bitmapWidth+"|"+bitmapHeight,Toast.LENGTH_SHORT).show();
+
+        // Calculate the bitmap radius
+//        int bitmapRadius = Math.min(bitmapWidth,bitmapHeight)/2;
+
+        int bitmapSquareWidth = Math.min(bitmapWidth, bitmapHeight);
+        //Toast.makeText(mContext,""+bitmapMin,Toast.LENGTH_SHORT).show();
+
+        int newBitmapSquareWidth = bitmapSquareWidth + borderWidthHalf;
+        //Toast.makeText(mContext,""+newBitmapMin,Toast.LENGTH_SHORT).show();
+
+        /*
+            Initializing a new empty bitmap.
+            Set the bitmap size from source bitmap
+            Also add the border space to new bitmap
+        */
+        Bitmap roundedBitmap = Bitmap.createBitmap(newBitmapSquareWidth, newBitmapSquareWidth, Bitmap.Config.ARGB_8888);
+
+        /*
+            Canvas
+                The Canvas class holds the "draw" calls. To draw something, you need 4 basic
+                components: A Bitmap to hold the pixels, a Canvas to host the draw calls (writing
+                into the bitmap), a drawing primitive (e.g. Rect, Path, text, Bitmap), and a paint
+                (to describe the colors and styles for the drawing).
+
+            Canvas(Bitmap bitmap)
+                Construct a canvas with the specified bitmap to draw into.
+        */
+        // Initialize a new Canvas to draw empty bitmap
+        Canvas canvas = new Canvas(roundedBitmap);
+
+        /*
+            drawColor(int color)
+                Fill the entire canvas' bitmap (restricted to the current clip) with the specified
+                color, using srcover porterduff mode.
+        */
+        // Draw a solid color to canvas
+        canvas.drawColor(imageView.borderColor);
+
+        // Calculation to draw bitmap at the circular bitmap center position
+        int x = borderWidthHalf + bitmapSquareWidth - bitmapWidth;
+        int y = borderWidthHalf + bitmapSquareWidth - bitmapHeight;
+
+        /*
+            drawBitmap(Bitmap bitmap, float left, float top, Paint paint)
+                Draw the specified bitmap, with its top/left corner at (x,y), using the specified
+                paint, transformed by the current matrix.
+        */
+        /*
+            Now draw the bitmap to canvas.
+            Bitmap will draw its center to circular bitmap center by keeping border spaces
+        */
+        canvas.drawBitmap(bitmap, x, y, null);
+
+        // Initializing a new Paint instance to draw circular border
+        Paint borderPaint = new Paint();
+        borderPaint.setStyle(Paint.Style.STROKE);
+        borderPaint.setStrokeWidth(borderWidthHalf * 2);
+        borderPaint.setColor(imageView.borderColor);
+
+        /*
+            drawCircle(float cx, float cy, float radius, Paint paint)
+                Draw the specified circle using the specified paint.
+        */
+        /*
+            Draw the circular border to bitmap.
+            Draw the circle at the center of canvas.
+         */
+//        canvas.drawCircle(canvas.getWidth()/2, canvas.getWidth()/2, newBitmapSquareWidth/2, borderPaint);
+
+        RectF rectF = new RectF(
+                0, // left
+                0, // top
+                canvas.getWidth(), // right
+                canvas.getHeight() // bottom
+        );
+
+        canvas.drawRoundRect(
+                rectF, // rect
+                imageView.borderRadius, // rx
+                imageView.borderRadius, // ry
+                borderPaint // Paint
+        );
+        /*
+            RoundedBitmapDrawable
+                A Drawable that wraps a bitmap and can be drawn with rounded corners. You can create
+                a RoundedBitmapDrawable from a file path, an input stream, or from a Bitmap object.
+        */
+        /*
+            public static RoundedBitmapDrawable create (Resources res, Bitmap bitmap)
+                Returns a new drawable by creating it from a bitmap, setting initial target density
+                based on the display metrics of the resources.
+        */
+        /*
+            RoundedBitmapDrawableFactory
+                Constructs RoundedBitmapDrawable objects, either from Bitmaps directly, or from
+                streams and files.
+        */
+        // Create a new RoundedBitmapDrawable
+        RoundedBitmapDrawable roundedBitmapDrawable = RoundedBitmapDrawableFactory.create(resources, roundedBitmap);
+
+        /*
+            setCornerRadius(float cornerRadius)
+                Sets the corner radius to be applied when drawing the bitmap.
+        */
+        // Set the corner radius of the bitmap drawable
+        roundedBitmapDrawable.setCornerRadius(imageView.borderRadius);
+
+        /*
+            setAntiAlias(boolean aa)
+                Enables or disables anti-aliasing for this drawable.
+        */
+        roundedBitmapDrawable.setAntiAlias(true);
+
+        // Return the RoundedBitmapDrawable
+        return roundedBitmapDrawable;
     }
 
     @Override
