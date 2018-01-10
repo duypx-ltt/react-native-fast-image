@@ -189,7 +189,9 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     @ReactProp(name = "borderColor")
     public void setBorderColor(ImageViewWithUrl view, @Nullable String value) {
         if (value != null && !value.equals("")) {
-            view.borderColor = Color.parseColor(value);
+            try {
+                view.borderColor = Color.parseColor(value);
+            } catch (Exception e) {}
         }
     }
 
