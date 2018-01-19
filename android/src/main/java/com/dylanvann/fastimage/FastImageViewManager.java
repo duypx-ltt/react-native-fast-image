@@ -23,6 +23,7 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
@@ -189,6 +190,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
     @ReactProp(name = "borderColor")
     public void setBorderColor(ImageViewWithUrl view, @Nullable String value) {
         if (value != null && !value.equals("")) {
+            // view.borderColor = Color.parseColor(value);
             try {
                 view.borderColor = Color.parseColor(value);
             } catch (Exception e) {}
@@ -216,20 +218,28 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
             final Context context = view.getContext();
             final float borderWidth = view.borderWidth;
 
-            Glide.with(view.getContext()).load(view.glideUrl).asBitmap().centerCrop().into(new BitmapImageViewTarget(view) {
-                @Override
-                protected void setResource(Bitmap resource) {
-                    RoundedBitmapDrawable circularBitmapDrawable;
-                    if (borderWidth <= 0) {
-                        circularBitmapDrawable =
-                                RoundedBitmapDrawableFactory.create(context.getResources(), resource);
-                        circularBitmapDrawable.setCornerRadius(borderRadius);
-                    } else {
-                        circularBitmapDrawable = createRoundedBitmapDrawableWithBorder(resource, context.getResources(), (ImageViewWithUrl) view);
-                    }
-                    view.setImageDrawable(circularBitmapDrawable);
-                }
-            });
+            Glide
+                    .with(view.getContext())
+                    .load(view.glideUrl)
+                    .asBitmap()
+                    .centerCrop()
+                    .priority(view.priority)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .placeholder(TRANSPARENT_DRAWABLE)
+                    .into(new BitmapImageViewTarget(view) {
+                        @Override
+                        protected void setResource(Bitmap resource) {
+                            RoundedBitmapDrawable circularBitmapDrawable;
+                            if (borderWidth <= 0) {
+                                circularBitmapDrawable =
+                                        RoundedBitmapDrawableFactory.create(context.getResources(), resource);
+                                circularBitmapDrawable.setCornerRadius(borderRadius);
+                            } else {
+                                circularBitmapDrawable = createRoundedBitmapDrawableWithBorder(resource, context.getResources(), (ImageViewWithUrl) view);
+                            }
+                            view.setImageDrawable(circularBitmapDrawable);
+                        }
+                    });
         } else {
             Glide
                     .with(view.getContext().getApplicationContext())
@@ -238,6 +248,7 @@ class FastImageViewManager extends SimpleViewManager<ImageViewWithUrl> implement
                     .priority(view.priority)
                     .placeholder(TRANSPARENT_DRAWABLE)
                     .listener(LISTENER)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .into(view);
         }
     }

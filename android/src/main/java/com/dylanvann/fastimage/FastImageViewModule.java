@@ -49,7 +49,7 @@ class FastImageViewModule extends ReactContextBaseJavaModule {
                             .load(glideUrl)
                             .priority(priority)
                             .placeholder(TRANSPARENT_DRAWABLE)
-                            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
                             .preload();
                 }
             }
