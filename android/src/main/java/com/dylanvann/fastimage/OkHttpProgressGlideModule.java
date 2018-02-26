@@ -26,6 +26,7 @@ import okio.BufferedSource;
 import okio.ForwardingSource;
 import okio.Okio;
 import okio.Source;
+import java.util.concurrent.TimeUnit;
 
 public class OkHttpProgressGlideModule implements GlideModule {
 
