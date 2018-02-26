@@ -36,6 +36,9 @@ public class OkHttpProgressGlideModule implements GlideModule {
     public void registerComponents(Context context, Glide glide) {
         OkHttpClient client = new OkHttpClient
                 .Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
                 .addInterceptor(createInterceptor(new DispatchingProgressListener()))
                 .build();
         glide.register(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory(client));
